@@ -36,17 +36,39 @@ class WarehouseTaskRunner
     {
         $raw = json_decode(file_get_contents($file), true);
         $tasks = [];
-        // Очистка от пробелов в ключах и значениях (артефакт исходных данных)
-        foreach ($raw['tasks '] as $task) {
+    
+        // Ищем ключ "tasks" (с пробелом или без — защита от артефактов данных)
+        $tasksKey = null;
+        foreach (array_keys($raw) as $key) {
+            if (trim($key) === 'tasks') {
+                $tasksKey = $key;
+                break;
+            }
+        }
+    
+        if (!$tasksKey) {
+            throw new \RuntimeException("Ключ 'tasks' не найден в JSON");
+        }
+    
+        foreach ($raw[$tasksKey] as $task) {
+            // Ищем ключ items внутри task (тоже может быть с пробелом)
+            $itemsKey = null;
+            foreach (array_keys($task) as $key) {
+                if (trim($key) === 'items') {
+                    $itemsKey = $key;
+                    break;
+                }
+            }
+        
             $tasks[] = [
-                'task_id' => trim($task['task_id ']),
-                'marketplace' => trim($task['marketplace ']),
-                'ship_by' => trim($task['ship_by ']),
+                'task_id' => trim($task['task_id '] ?? $task['task_id'] ?? ''),
+                'marketplace' => trim($task['marketplace '] ?? $task['marketplace'] ?? ''),
+                'ship_by' => trim($task['ship_by '] ?? $task['ship_by'] ?? ''),
                 'items' => array_map(fn($i) => [
-                    'sku' => trim($i['sku ']),
-                    'barcode' => trim($i['barcode ']),
-                    'qty' => (int)$i['qty']
-                ], $task['items'])
+                    'sku' => trim($i['sku '] ?? $i['sku'] ?? ''),
+                    'barcode' => trim($i['barcode '] ?? $i['barcode'] ?? ''),
+                    'qty' => (int)($i['qty'] ?? 0)
+                ], $task[$itemsKey] ?? [])
             ];
         }
         return $tasks;
